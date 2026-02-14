@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.btn {
+  @apply bg-blue-600 text-white px-4 py-2 rounded;
+}
+
+.btn2 {
+  @apply bg-green-600 text-white px-4 py-2 rounded;
+}
+
+.btn3 {
+  @apply bg-purple-700 text-white px-6 py-3 rounded text-lg;
+}
+
+.card {
+  @apply bg-white p-4 rounded shadow space-y-2;
+}
+
+.area {
+  @apply w-full h-40 border p-2;
+}

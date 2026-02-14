@@ -1,0 +1,62 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Unit test / coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+pytest_cache/
+nosetests.xml
+coverage.xml
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.env.local
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Database
+*.sqlite3
+
+# MacOS
+.DS_Store
+
+# MyPy
+.mypy_cache/
+
+# PyCharm
+.idea/
+
+# FastAPI / uploads (optional)
+uploads/
+media/
+staticfiles/
+
+# Secrets
+secrets.json
+config.json
