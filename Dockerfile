@@ -40,7 +40,7 @@ WORKDIR /app/frontend
 RUN npm ci
 
 # Copy the rest of the frontend code
-COPY frontend ./frontend
+COPY frontend .
 
 # Generate Prisma Client
 # We use a dummy URL because we only need the generated types/client code at build time. 
