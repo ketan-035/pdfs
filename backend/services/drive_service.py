@@ -97,13 +97,23 @@ def process_files(token, file_ids):
                 final_pdf = downloaded_path
             
             elif downloaded_path.lower().endswith('.docx'):
-                pdf_path = os.path.splitext(downloaded_path)[0] + ".pdf"
                 try:
-                    # Try docx2pdf (requires Word)
-                    convert(downloaded_path, pdf_path)
-                    final_pdf = pdf_path
+                    # Try docx2pdf (Works on Windows/macOS with Word installed)
+                    try:
+                        convert(downloaded_path, pdf_path)
+                        final_pdf = pdf_path
+                    except Exception as e:
+                        print(f"docx2pdf failed: {e}. Trying LibreOffice...")
+                        # Try LibreOffice (Works on Linux/Docker)
+                        import subprocess
+                        # --outdir is important to define where the PDF goes
+                        subprocess.run([
+                            'libreoffice', '--headless', '--convert-to', 'pdf', 
+                            '--outdir', temp_dir, downloaded_path
+                        ], check=True)
+                        final_pdf = pdf_path
                 except Exception as e:
-                    print(f"docx2pdf failed: {e}. Fallback to text extraction.")
+                    print(f"LibreOffice failed: {e}. Fallback to text extraction.")
                     try:
                         # Fallback: text extraction using python-docx
                         doc = Document(downloaded_path)

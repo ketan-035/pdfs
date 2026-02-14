@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import FolderPicker from "@/components/FolderPicker";
 import DriveBrowser from "@/components/DriveBrowser";
@@ -13,12 +13,17 @@ export default function Dashboard() {
     const [loadingFolder, setLoadingFolder] = useState(true);
 
     useEffect(() => {
+        if (session?.error === "RefreshAccessTokenError") {
+            signOut({ callbackUrl: "/" });
+        }
+
         if (status === "authenticated") {
             getWorkingFolder().then((folder) => {
                 if (folder?.workingFolderId) {
                     setWorkingFolderState({
                         id: folder.workingFolderId,
                         name: folder.workingFolderName || "My Drive",
+                        pdfOutputName: folder.pdfOutputName,
                     });
                 }
                 setLoadingFolder(false);
@@ -26,7 +31,7 @@ export default function Dashboard() {
         } else if (status === "unauthenticated") {
             window.location.href = "/";
         }
-    }, [status]);
+    }, [status, session]);
 
     if (status === "loading" || loadingFolder) {
         return <div className="flex justify-center items-center h-screen">Loading...</div>;
@@ -49,8 +54,13 @@ export default function Dashboard() {
         <div className="min-h-screen bg-gray-50 flex flex-col items-center py-6 md:py-10 px-4">
             <header className="w-full max-w-5xl flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-2">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-800">My Dashboard</h1>
-                <div className="flex items-center gap-4 text-sm md:text-base">
-                    <span className="text-gray-600">User: {session.user?.name}</span>
+                <div className="flex justify-center items-center gap-4">
+                    <div className="flex items-center gap-4 text-sm md:text-base">
+                        <span className="text-gray-600">User: {session.user?.name}</span>
+                    </div>
+                    <button onClick={() => signOut()} className="mt-4 text-gray-100 hover:underline text-sm bg-red-500 px-4 py-2 rounded">
+                        Sign out
+                    </button>
                 </div>
             </header>
 

@@ -2,11 +2,12 @@
 # Use Node.js 20 as the base image (includes npm/node)
 FROM node:20-bullseye
 
-# Install Python 3.11 and pip
+# Install Python 3.11 and pip, and LibreOffice for docx conversion
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    libreoffice \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
