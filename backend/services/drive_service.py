@@ -97,9 +97,15 @@ def process_files(token, file_ids):
                 final_pdf = downloaded_path
             
             elif downloaded_path.lower().endswith('.docx'):
+                pdf_path = os.path.splitext(downloaded_path)[0] + ".pdf"
                 try:
                     # Try docx2pdf (Works on Windows/macOS with Word installed)
                     try:
+                        import platform
+                        if platform.system() == "Windows":
+                            import pythoncom
+                            pythoncom.CoInitialize()
+                            
                         convert(downloaded_path, pdf_path)
                         final_pdf = pdf_path
                     except Exception as e:
@@ -113,7 +119,7 @@ def process_files(token, file_ids):
                         ], check=True)
                         final_pdf = pdf_path
                 except Exception as e:
-                    print(f"LibreOffice failed: {e}. Fallback to text extraction.")
+                    print(f"LibreOffice/Conversion failed: {e}. Fallback to text extraction.")
                     try:
                         # Fallback: text extraction using python-docx
                         doc = Document(downloaded_path)
