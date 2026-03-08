@@ -13,9 +13,12 @@ from nbconvert import HTMLExporter
 from xhtml2pdf import pisa
 from docx2pdf import convert
 from docx import Document
+import subprocess
+import platform
+import shutil
 
 # Define scopes (consistent with frontend)
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.metadata.readonly']
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.metadata.readonly', 'https://www.googleapis.com/auth/drive.file']
 
 def download_file(service, file_id, mime_type, destination):
     """
@@ -84,6 +87,40 @@ def process_files(token, file_ids):
             # Destination path (preserve extension if possible)
             local_path = os.path.join(temp_dir, name)
             
+            is_word_file = (mime == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or name.lower().endswith('.docx'))
+            if is_word_file:
+                print(f"File {name} is a Word Document. Converting directly via Google Drive API for perfect fidelity.")
+                try:
+                    # 1. Copy and convert to a native fluid Google Doc
+                    copy_metadata = {
+                        'name': f"Temp_Convert_{name}",
+                        'mimeType': 'application/vnd.google-apps.document'
+                    }
+                    copied_file = service.files().copy(fileId=fid, body=copy_metadata).execute()
+                    copied_id = copied_file.get('id')
+                    
+                    try:
+                        # 2. Let Google cleanly paginate and export the natively converted doc to PDF
+                        pdf_path = os.path.splitext(local_path)[0] + ".pdf"
+                        request = service.files().export_media(fileId=copied_id, mimeType='application/pdf')
+                        fh = io.FileIO(pdf_path, 'wb')
+                        downloader = MediaIoBaseDownload(fh, request)
+                        done = False
+                        while done is False:
+                            status, done = downloader.next_chunk()
+                        
+                        pdf_files.append(pdf_path)
+                        print(f"Successfully converted {name} to natively paginated PDF.")
+                        continue # Skip local download/conversion entirely!
+                    finally:
+                        # 3. Destroy exactly what we created, leaving the User's drive completely unaffected
+                        try:
+                            service.files().delete(fileId=copied_id).execute()
+                        except Exception as delete_ex:
+                            print(f"Could not delete temporary conversion doc {copied_id}: {delete_ex}")
+                except Exception as ex:
+                    print(f"Native Google Drive conversion failed: {ex}. Falling back to local conversion...")
+            
             # Download
             downloaded_path = download_file(service, fid, mime, local_path)
             
@@ -101,23 +138,55 @@ def process_files(token, file_ids):
                 try:
                     # Try docx2pdf (Works on Windows/macOS with Word installed)
                     try:
-                        import platform
                         if platform.system() == "Windows":
                             import pythoncom
                             pythoncom.CoInitialize()
+                            print(f"Trying docx2pdf on {downloaded_path}...")
                             
                         convert(downloaded_path, pdf_path)
-                        final_pdf = pdf_path
+                        
+                        if os.path.exists(pdf_path):
+                            final_pdf = pdf_path
+                        else:
+                            raise Exception("docx2pdf finished but pdf not found")
+                            
                     except Exception as e:
                         print(f"docx2pdf failed: {e}. Trying LibreOffice...")
-                        # Try LibreOffice (Works on Linux/Docker)
-                        import subprocess
-                        # --outdir is important to define where the PDF goes
+                        
+                        # Find LibreOffice binary
+                        soffice_bin = "libreoffice"
+                        if platform.system() == "Windows":
+                            paths = [
+                                r"C:\Program Files\LibreOffice\program\soffice.exe",
+                                r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
+                            ]
+                            for p in paths:
+                                if os.path.exists(p):
+                                    soffice_bin = p
+                                    break
+                        else:
+                            soffice_bin = shutil.which("libreoffice") or shutil.which("soffice") or "libreoffice"
+                            
+                        # Set up isolated home environment for HF spaces constraints
+                        run_env = os.environ.copy()
+                        run_env["HOME"] = "/tmp"
+
+                        print(f"Running LibreOffice with binary: {soffice_bin}")
                         subprocess.run([
-                            'libreoffice', '--headless', '--convert-to', 'pdf', 
+                            soffice_bin, '--headless', '--convert-to', 'pdf', 
                             '--outdir', temp_dir, downloaded_path
-                        ], check=True)
-                        final_pdf = pdf_path
+                        ], check=True, env=run_env)
+                        
+                        # LibreOffice outputs to --outdir, using the original base filename
+                        lo_expected_pdf = os.path.join(temp_dir, os.path.splitext(os.path.basename(downloaded_path))[0] + ".pdf")
+                        
+                        if os.path.exists(lo_expected_pdf):
+                            final_pdf = lo_expected_pdf
+                        elif os.path.exists(pdf_path):
+                            final_pdf = pdf_path
+                        else:
+                            raise Exception("LibreOffice returned success but PDF file not found")
+                            
                 except Exception as e:
                     print(f"LibreOffice/Conversion failed: {e}. Fallback to text extraction.")
                     try:
